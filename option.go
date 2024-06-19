@@ -267,12 +267,12 @@ func OptionSetExitCheckerOnInput(fn ExitChecker) Option {
 }
 
 // New returns a Prompt with powerful auto-completion.
-func New(executor Executor, completer Completer, opts ...Option) *Prompt {
+func New(executor Executor, completer Completer, in ConsoleParser, opts ...Option) *Prompt {
 	defaultWriter := NewStdoutWriter()
 	registerConsoleWriter(defaultWriter)
 
 	pt := &Prompt{
-		in: NewStandardInputParser(),
+		in: in,
 		renderer: &Render{
 			prefix:                       "> ",
 			out:                          defaultWriter,
@@ -294,11 +294,12 @@ func New(executor Executor, completer Completer, opts ...Option) *Prompt {
 			scrollbarThumbColor:          DarkGray,
 			scrollbarBGColor:             Cyan,
 		},
-		buf:         NewBuffer(),
-		executor:    executor,
-		history:     NewHistory(),
-		completion:  NewCompletionManager(completer, 6),
-		keyBindMode: EmacsKeyBind, // All the above assume that bash is running in the default Emacs setting
+		buf:           NewBuffer(),
+		executor:      executor,
+		history:       NewHistory(),
+		recordHistory: true,
+		completion:    NewCompletionManager(completer, 6),
+		keyBindMode:   EmacsKeyBind, // All the above assume that bash is running in the default Emacs setting
 	}
 
 	for _, opt := range opts {

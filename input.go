@@ -1,6 +1,11 @@
 package prompt
 
-import "bytes"
+import (
+	"bytes"
+	"fmt"
+
+	"github.com/RainyBow/go-prompt/internal/debug"
+)
 
 // WinSize represents the width and height of terminal.
 type WinSize struct {
@@ -14,20 +19,51 @@ type ConsoleParser interface {
 	Setup() error
 	// TearDown should be called after stopping input
 	TearDown() error
+	TearDownDisableEcho() error
 	// GetWinSize returns WinSize object to represent width and height of terminal.
 	GetWinSize() *WinSize
+	SetWinSize(*WinSize)
 	// Read returns byte array.
 	Read() ([]byte, error)
 }
 
 // GetKey returns Key correspond to input byte codes.
-func GetKey(b []byte) Key {
+// 返回值：key为操作数类型，[]byte为不含操作数的普通类型字符
+func GetKey(b []byte) (Key, []byte) {
+	if len(b) > 1 {
+		debug.Log(fmt.Sprintf("GetKey byte b:%x \n\n", b))
+		debug.Log(fmt.Sprintf("GetKey str b:%s \n\n", b))
+	}
+
 	for _, k := range ASCIISequences {
 		if bytes.Equal(k.ASCIICode, b) {
-			return k.Key
+			return k.Key, b
 		}
 	}
-	return NotDefined
+	// 判断是否由多个Tab Left Right Backspace Up Down组成
+	// 当判断成功时,仅返回最后一个key
+	tmp := b
+	{
+		lastKey := NotDefined
+		for _, k := range ASCIISequences {
+			// ASCIISequences包含所有操作数，不包含普通输出字符
+			if k.Key == Escape {
+				// Escape为操作数共用前缀，操作数删除完再删除
+				continue
+			}
+			if bytes.Contains(tmp, k.ASCIICode) {
+				lastKey = k.Key
+				tmp = bytes.ReplaceAll(tmp, k.ASCIICode, []byte{})
+			}
+		}
+		// 删除共用前缀0x1b
+		tmp = bytes.ReplaceAll(tmp, []byte{0x1b}, []byte{})
+		if len(tmp) == 0 {
+			return lastKey, tmp
+		}
+
+	}
+	return NotDefined, tmp
 }
 
 // ASCIISequences holds mappings of the key and byte array.
@@ -44,7 +80,7 @@ var ASCIISequences = []*ASCIICode{
 	{Key: ControlG, ASCIICode: []byte{0x7}},
 	{Key: ControlH, ASCIICode: []byte{0x8}},
 	//{Key: ControlI, ASCIICode: []byte{0x9}},
-	//{Key: ControlJ, ASCIICode: []byte{0xa}},
+	{Key: ControlJ, ASCIICode: []byte{0xa}},
 	{Key: ControlK, ASCIICode: []byte{0xb}},
 	{Key: ControlL, ASCIICode: []byte{0xc}},
 	{Key: ControlM, ASCIICode: []byte{0xd}},
@@ -115,6 +151,10 @@ var ASCIISequences = []*ASCIICode{
 	{Key: F10, ASCIICode: []byte{0x1b, 0x5b, 0x32, 0x31, 0x7e}},
 	{Key: F11, ASCIICode: []byte{0x1b, 0x5b, 0x32, 0x32, 0x7e}},
 	{Key: F12, ASCIICode: []byte{0x1b, 0x5b, 0x32, 0x34, 0x7e, 0x8}},
+
+	{Key: F11, ASCIICode: []byte{0x1b, 0x5b, 0x32, 0x33, 0x7e}}, // VT100
+	{Key: F12, ASCIICode: []byte{0x1b, 0x5b, 0x32, 0x34, 0x7e}}, // VT100
+
 	{Key: F13, ASCIICode: []byte{0x1b, 0x5b, 0x25, 0x7e}},
 	{Key: F14, ASCIICode: []byte{0x1b, 0x5b, 0x26, 0x7e}},
 	{Key: F15, ASCIICode: []byte{0x1b, 0x5b, 0x28, 0x7e}},
@@ -166,4 +206,18 @@ var ASCIISequences = []*ASCIICode{
 
 	{Key: Ignore, ASCIICode: []byte{0x1b, 0x5b, 0x45}}, // Xterm
 	{Key: Ignore, ASCIICode: []byte{0x1b, 0x5b, 0x46}}, // Linux console
+}
+
+var (
+	// left right tab
+	more_multi_key = []*ASCIICode{}
+)
+
+func init() {
+	for _, k := range ASCIISequences {
+		switch k.Key {
+		case Left, Right, Tab, Backspace, Up, Down:
+			more_multi_key = append(more_multi_key, k)
+		}
+	}
 }

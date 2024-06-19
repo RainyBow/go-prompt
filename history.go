@@ -5,22 +5,41 @@ type History struct {
 	histories []string
 	tmp       []string
 	selected  int
+	max       int // 0 means unlimit
+}
+
+// update max history size
+func (h *History) UpdateMax(max int) {
+	if len(h.histories) <= max {
+		h.max = max
+		return
+	}
+	h.histories = h.histories[len(h.histories)-max:]
+	h.Clear()
+
 }
 
 // Add to add text in history.
 func (h *History) Add(input string) {
-	h.histories = append(h.histories, input)
+	if len(h.histories) > 0 && input == h.histories[len(h.histories)-1] {
+		// 和上一条重复的忽略
+		h.Clear()
+		return
+	}
+	if h.max > 0 && len(h.histories) == h.max {
+		h.histories = append(h.histories[1:], input)
+	} else {
+		h.histories = append(h.histories, input)
+	}
 	h.Clear()
 }
 
 // Clear to clear the history.
 func (h *History) Clear() {
-	h.tmp = make([]string, len(h.histories))
-	for i := range h.histories {
-		h.tmp[i] = h.histories[i]
-	}
-	h.tmp = append(h.tmp, "")
-	h.selected = len(h.tmp) - 1
+	h.tmp = make([]string, len(h.histories)+1)
+	copy(h.tmp, h.histories)
+	h.selected = len(h.histories)
+
 }
 
 // Older saves a buffer of current line and get a buffer of previous line by up-arrow.

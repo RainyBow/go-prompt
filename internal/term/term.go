@@ -1,25 +1,29 @@
+//go:build !windows
 // +build !windows
 
 package term
 
 import (
 	"sync"
+	"syscall"
 
 	"github.com/pkg/term/termios"
 	"golang.org/x/sys/unix"
 )
 
 var (
-	saveTermios     *unix.Termios
+	saveTermios     unix.Termios
 	saveTermiosFD   int
 	saveTermiosOnce sync.Once
 )
 
-func getOriginalTermios(fd int) (*unix.Termios, error) {
+func getOriginalTermios(fd int) (unix.Termios, error) {
 	var err error
 	saveTermiosOnce.Do(func() {
 		saveTermiosFD = fd
-		saveTermios, err = termios.Tcgetattr(uintptr(fd))
+		var saveTermiosPtr *unix.Termios
+		saveTermiosPtr, err = termios.Tcgetattr(uintptr(fd))
+		saveTermios = *saveTermiosPtr
 	})
 	return saveTermios, err
 }
@@ -30,5 +34,14 @@ func Restore() error {
 	if err != nil {
 		return err
 	}
-	return termios.Tcsetattr(uintptr(saveTermiosFD), termios.TCSANOW, o)
+	return termios.Tcsetattr(uintptr(saveTermiosFD), termios.TCSANOW, &o)
+}
+
+func RestoreDisableEcho() error {
+	o, err := getOriginalTermios(saveTermiosFD)
+	if err != nil {
+		return err
+	}
+	o.Lflag &^= syscall.ECHO
+	return termios.Tcsetattr(uintptr(saveTermiosFD), termios.TCSANOW, &o)
 }

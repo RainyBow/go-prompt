@@ -3,8 +3,8 @@ package prompt
 func dummyExecutor(in string) {}
 
 // Input get the input data from the user and return it.
-func Input(prefix string, completer Completer, opts ...Option) string {
-	pt := New(dummyExecutor, completer)
+func Input(prefix string, completer Completer, in ConsoleParser, opts ...Option) string {
+	pt := New(dummyExecutor, completer, in)
 	pt.renderer.prefixTextColor = DefaultColor
 	pt.renderer.prefix = prefix
 
@@ -18,9 +18,9 @@ func Input(prefix string, completer Completer, opts ...Option) string {
 
 // Choose to the shortcut of input function to select from string array.
 // Deprecated: Maybe anyone want to use this.
-func Choose(prefix string, choices []string, opts ...Option) string {
+func Choose(prefix string, choices []string, in ConsoleParser, opts ...Option) string {
 	completer := newChoiceCompleter(choices, FilterHasPrefix)
-	pt := New(dummyExecutor, completer)
+	pt := New(dummyExecutor, completer, in)
 	pt.renderer.prefixTextColor = DefaultColor
 	pt.renderer.prefix = prefix
 

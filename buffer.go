@@ -2,8 +2,9 @@ package prompt
 
 import (
 	"strings"
+	"sync"
 
-	"github.com/c-bata/go-prompt/internal/debug"
+	"github.com/RainyBow/go-prompt/internal/debug"
 )
 
 // Buffer emulates the console buffer.
@@ -180,9 +181,30 @@ func (b *Buffer) SwapCharactersBeforeCursor() {
 	}
 }
 
+// put buffer to sync.Pool
+func (b *Buffer) Close() {
+	buffer_pool.Put(b)
+}
+
+var (
+	buffer_pool = sync.Pool{New: func() interface{} {
+		return &Buffer{
+			workingLines:    []string{""},
+			workingIndex:    0,
+			preferredColumn: -1, // -1 means nil
+		}
+	}}
+)
+
 // NewBuffer is constructor of Buffer struct.
 func NewBuffer() (b *Buffer) {
-	b = &Buffer{
+	// b = &Buffer{
+	// 	workingLines:    []string{""},
+	// 	workingIndex:    0,
+	// 	preferredColumn: -1, // -1 means nil
+	// }
+	b = buffer_pool.Get().(*Buffer)
+	*b = Buffer{
 		workingLines:    []string{""},
 		workingIndex:    0,
 		preferredColumn: -1, // -1 means nil

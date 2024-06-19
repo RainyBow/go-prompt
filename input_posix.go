@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package prompt
@@ -5,11 +6,13 @@ package prompt
 import (
 	"syscall"
 
-	"github.com/c-bata/go-prompt/internal/term"
+	"github.com/RainyBow/go-prompt/internal/term"
 	"golang.org/x/sys/unix"
 )
 
 const maxReadBytes = 1024
+const defaultRow = 50
+const defaultCol = 100
 
 // PosixParser is a ConsoleParser implementation for POSIX environment.
 type PosixParser struct {
@@ -39,6 +42,15 @@ func (t *PosixParser) TearDown() error {
 	}
 	return nil
 }
+func (t *PosixParser) TearDownDisableEcho() error { // 关闭回显
+	if err := syscall.SetNonblock(t.fd, false); err != nil {
+		return err
+	}
+	if err := term.RestoreDisableEcho(); err != nil {
+		return err
+	}
+	return nil
+}
 
 // Read returns byte array.
 func (t *PosixParser) Read() ([]byte, error) {
@@ -61,6 +73,15 @@ func (t *PosixParser) GetWinSize() *WinSize {
 		Col: ws.Col,
 	}
 }
+func (t *PosixParser) SetWinSize(winsize *WinSize) {
+	err := unix.IoctlSetWinsize(t.fd, unix.TIOCSWINSZ, &unix.Winsize{
+		Row: winsize.Row,
+		Col: winsize.Col,
+	})
+	if err != nil {
+		panic(err)
+	}
+}
 
 var _ ConsoleParser = &PosixParser{}
 
@@ -74,4 +95,24 @@ func NewStandardInputParser() *PosixParser {
 	return &PosixParser{
 		fd: in,
 	}
+}
+
+// just for console(serial) which window size is 0
+func NewConsoleInputParser(winsize WinSize) *PosixParser {
+	in, err := syscall.Open("/dev/ttyS0", syscall.O_RDONLY, 0)
+	if err != nil {
+		in, err = syscall.Open("/dev/console", syscall.O_RDONLY, 0)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	ret := &PosixParser{
+		fd: in,
+	}
+	tmp_size := ret.GetWinSize()
+	if tmp_size.Row == 0 || tmp_size.Col == 0 {
+		ret.SetWinSize(&winsize)
+	}
+	return ret
 }

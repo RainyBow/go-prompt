@@ -3,7 +3,7 @@ package prompt
 import (
 	"runtime"
 
-	"github.com/c-bata/go-prompt/internal/debug"
+	"github.com/RainyBow/go-prompt/internal/debug"
 	runewidth "github.com/mattn/go-runewidth"
 )
 
@@ -96,6 +96,9 @@ func (r *Render) renderCompletion(buf *Buffer, completions *CompletionManager) {
 		return
 	}
 	prefix := r.getCurrentPrefix()
+	if len(suggestions) > completions.verticalScroll+int(completions.max) {
+		suggestions = suggestions[0 : completions.verticalScroll+int(completions.max)]
+	}
 	formatted, width := formatSuggestions(
 		suggestions,
 		int(r.col)-runewidth.StringWidth(prefix)-1, // -1 means a width of scrollbar

@@ -1,3 +1,4 @@
+//go:build !windows
 // +build !windows
 
 package prompt
@@ -7,11 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/c-bata/go-prompt/internal/debug"
+	"github.com/RainyBow/go-prompt/internal/debug"
 )
 
 func (p *Prompt) handleSignals(exitCh chan int, winSizeCh chan *WinSize, stop chan struct{}) {
-	in := p.in
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(
 		sigCh,
@@ -20,11 +20,12 @@ func (p *Prompt) handleSignals(exitCh chan int, winSizeCh chan *WinSize, stop ch
 		syscall.SIGQUIT,
 		syscall.SIGWINCH,
 	)
-
 	for {
 		select {
 		case <-stop:
 			debug.Log("stop handleSignals")
+			signal.Stop(sigCh)
+			close(sigCh)
 			return
 		case s := <-sigCh:
 			switch s {
@@ -42,7 +43,7 @@ func (p *Prompt) handleSignals(exitCh chan int, winSizeCh chan *WinSize, stop ch
 
 			case syscall.SIGWINCH:
 				debug.Log("Catch SIGWINCH")
-				winSizeCh <- in.GetWinSize()
+				winSizeCh <- p.in.GetWinSize()
 			}
 		}
 	}
