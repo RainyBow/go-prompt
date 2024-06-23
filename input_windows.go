@@ -1,9 +1,11 @@
+//go:build windows
 // +build windows
 
 package prompt
 
 import (
 	"errors"
+	"fmt"
 	"syscall"
 	"unicode/utf8"
 	"unsafe"
@@ -75,6 +77,15 @@ func (p *WindowsParser) GetWinSize() *WinSize {
 		Row: uint16(h),
 		Col: uint16(w),
 	}
+}
+
+// DO nothings
+func (p *WindowsParser) TearDownDisableEcho() error { // 关闭回显
+	return fmt.Errorf("not impl")
+}
+
+// DO nothings
+func (p *WindowsParser) SetWinSize(winSize *WinSize) {
 }
 
 // NewStandardInputParser returns ConsoleParser object to read from stdin.
